@@ -70,6 +70,10 @@
           View Scoreboard
         </button>
       </div>
+      <p class="text-lg font-bold text-white mt-2">
+        Long press the arrow keys to move. Eat the fruits to get points and +3s
+        bonus time. Avoid the chaser.
+      </p>
     </div>
 
     <!-- Scoreboard overlay -->
@@ -78,7 +82,10 @@
         class="bg-gray-800 p-6 rounded-lg shadow-lg w-96 text-white text-center"
       >
         <h2 class="text-2xl font-bold mb-4">🏆 Scoreboard</h2>
-        <ul id="scoreList" class="text-left space-y-2 max-h-[600px] overflow-y-auto"></ul>
+        <ul
+          id="scoreList"
+          class="text-left space-y-2 max-h-[600px] overflow-y-auto p-5"
+        ></ul>
         <button
           onclick="closeScoreboard()"
           class="mt-4 px-4 py-2 bg-red-500 rounded !text-white"
@@ -89,12 +96,18 @@
     </div>
 
     <!-- Canvas -->
-    <canvas
-      id="gameCanvas"
-      width="800"
-      height="500"
-      class="rounded-2xl shadow-2xl bg-black"
-    ></canvas>
+    <div class="flex flex-col gap-3">
+      <canvas
+        id="gameCanvas"
+        width="800"
+        height="500"
+        class="rounded-2xl shadow-2xl bg-gray-800"
+      ></canvas>
+      <p class="text-lg font-bold text-white">
+        Long press the arrow keys to move. Eat the fruits to get points and +3s
+        bonus time. Avoid the chaser.
+      </p>
+    </div>
 
     <script>
       const canvas = document.getElementById("gameCanvas");
@@ -235,9 +248,9 @@
         ctx.font = "28px Arial";
         ctx.fillText("🤪", player.x, player.y);
 
-        // Chaser (👮)
+        // Chaser (👺)
         ctx.font = "28px Arial";
-        ctx.fillText("👮", chaser.x, chaser.y);
+        ctx.fillText("👺", chaser.x, chaser.y);
 
         // Fruit (🍎)
         ctx.font = "24px Arial";
