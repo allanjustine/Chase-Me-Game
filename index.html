@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Chase Me</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      #overlay,
+      #gameOver,
+      #scoreboard {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        flex-direction: column;
+        z-index: 10;
+      }
+      #overlay input {
+        padding: 8px;
+        border-radius: 6px;
+        color: black;
+      }
+      #gameOver button,
+      #overlay button,
+      #scoreboard button {
+        margin-top: 15px;
+        padding: 10px 20px;
+        border-radius: 6px;
+        background: #38bdf8;
+        color: black;
+        font-weight: bold;
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  </head>
+  <body class="bg-gray-900 flex items-center justify-center h-screen relative">
+    <!-- Name input overlay -->
+    <div id="overlay">
+      <h1 class="text-2xl mb-4 font-bold">Enter Your Name</h1>
+      <input id="playerNameInput" type="text" placeholder="Your name" />
+      <small id="enterNameError" class="text-red-500 hidden"
+        >Please enter your name!</small
+      >
+      <button
+        onclick="startGame()"
+        class="mt-4 px-4 py-2 bg-green-500 rounded !text-white"
+      >
+        Start Game
+      </button>
+    </div>
+
+    <!-- Game Over screen -->
+    <div id="gameOver" style="display: none">
+      <h1 class="text-3xl mb-2 text-red-500 font-bold">Game Over</h1>
+      <p id="finalScore" class="text-lg font-bold"></p>
+      <p id="highestScore" class="text-lg font-bold"></p>
+      <div class="flex gap-2 items-center">
+        <button class="!text-white" onclick="restartGame()">Restart</button>
+        <button
+          onclick="showScoreboard()"
+          class="mt-4 px-4 py-2 bg-blue-500 rounded !text-white"
+        >
+          View Scoreboard
+        </button>
+      </div>
+    </div>
+
+    <!-- Scoreboard overlay -->
+    <div id="scoreboard" style="display: none">
+      <div
+        class="bg-gray-800 p-6 rounded-lg shadow-lg w-96 text-white text-center"
+      >
+        <h2 class="text-2xl font-bold mb-4">🏆 Scoreboard</h2>
+        <ul id="scoreList" class="text-left space-y-2 max-h-[600px] overflow-y-auto"></ul>
+        <button
+          onclick="closeScoreboard()"
+          class="mt-4 px-4 py-2 bg-red-500 rounded !text-white"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+
+    <!-- Canvas -->
+    <canvas
+      id="gameCanvas"
+      width="800"
+      height="500"
+      class="rounded-2xl shadow-2xl bg-black"
+    ></canvas>
+
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+
+      // Game objects
+      let player, chaser, pointItem;
+      let keys = {};
+      let points = 0;
+      let gameTime = 30; // base time
+      let startTime;
+      let bonusMessage = null;
+      let gameRunning = false;
+
+      // LocalStorage
+      let playerName = localStorage.getItem("chasingPlayerName");
+      let highestScore = localStorage.getItem("chasingHighestScore") || 0;
+
+      if (playerName) {
+        document.getElementById("overlay").style.display = "none"; // skip overlay if name exists
+        initGame();
+      }
+
+      function startGame() {
+        const input = document.getElementById("playerNameInput").value.trim();
+        if (!input) {
+          document.getElementById("enterNameError").classList.remove("hidden");
+          return;
+        }
+        playerName = input;
+        localStorage.setItem("chasingPlayerName", playerName);
+        document.getElementById("overlay").style.display = "none";
+        initGame();
+      }
+
+      function initGame() {
+        player = { x: 400, y: 400, size: 20, speed: 5 };
+        chaser = { x: 400, y: 100, size: 20, speed: 3 };
+        points = 0;
+        gameTime = 30;
+        startTime = Date.now();
+        pointItem = spawnPoint();
+        bonusMessage = null;
+        gameRunning = true;
+        requestAnimationFrame(gameLoop);
+      }
+
+      function restartGame() {
+        document.getElementById("gameOver").style.display = "none";
+        initGame();
+      }
+
+      document.addEventListener("keydown", (e) => (keys[e.key] = true));
+      document.addEventListener("keyup", (e) => (keys[e.key] = false));
+
+      function spawnPoint() {
+        return {
+          x: Math.random() * (canvas.width - 20),
+          y: Math.random() * (canvas.height - 20),
+          size: 20,
+        };
+      }
+
+      function update() {
+        if (!gameRunning) return;
+
+        // Player movement
+        if (keys["ArrowUp"]) player.y -= player.speed;
+        if (keys["ArrowDown"]) player.y += player.speed;
+        if (keys["ArrowLeft"]) player.x -= player.speed;
+        if (keys["ArrowRight"]) player.x += player.speed;
+
+        // Boundaries
+        player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
+        player.y = Math.max(0, Math.min(canvas.height - player.size, player.y));
+
+        // Chaser follows
+        let dx = player.x - chaser.x;
+        let dy = player.y - chaser.y;
+        let dist = Math.hypot(dx, dy);
+        if (dist > 0) {
+          chaser.x += (dx / dist) * chaser.speed;
+          chaser.y += (dy / dist) * chaser.speed;
+        }
+
+        // Collision with chaser
+        if (dist < player.size) {
+          endGame();
+          return;
+        }
+
+        // Collect fruit
+        if (
+          player.x < pointItem.x + pointItem.size &&
+          player.x + player.size > pointItem.x &&
+          player.y < pointItem.y + pointItem.size &&
+          player.y + player.size > pointItem.y
+        ) {
+          points++;
+          gameTime += 3;
+          bonusMessage = { text: "+3s", createdAt: Date.now() };
+          pointItem = spawnPoint();
+        }
+
+        // Timer check
+        let elapsed = (Date.now() - startTime) / 1000;
+        if (elapsed >= gameTime) {
+          endGame();
+        }
+      }
+
+      async function submitScore(scoreData) {
+        await axios.post(
+          "https://flappybird-server.smctgroup.ph/chase-me/submit-score",
+          scoreData
+        );
+      }
+
+      async function endGame() {
+        gameRunning = false;
+        // Save highest score
+        if (points > highestScore) {
+          highestScore = points;
+          localStorage.setItem("chasingHighestScore", highestScore);
+          await submitScore({ player_name: playerName, score: points });
+        }
+        document.getElementById("finalScore").textContent = `Score: ${points}`;
+        document.getElementById(
+          "highestScore"
+        ).textContent = `Highest Score: ${highestScore}`;
+        document.getElementById("gameOver").style.display = "flex";
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Player (🤪)
+        ctx.font = "28px Arial";
+        ctx.fillText("🤪", player.x, player.y);
+
+        // Chaser (👮)
+        ctx.font = "28px Arial";
+        ctx.fillText("👮", chaser.x, chaser.y);
+
+        // Fruit (🍎)
+        ctx.font = "24px Arial";
+        ctx.fillText("🍎", pointItem.x, pointItem.y);
+
+        // UI
+        ctx.fillStyle = "white";
+        ctx.font = "18px Arial";
+        ctx.fillText(`Player Name: ${playerName}`, 10, 25);
+        ctx.fillText(`Score: ${points}`, 10, 50);
+        ctx.fillText(`Highest: ${highestScore}`, 10, 75);
+
+        let timeLeft = Math.max(
+          0,
+          gameTime - Math.floor((Date.now() - startTime) / 1000)
+        );
+        ctx.fillText("Time: " + timeLeft, 700, 25);
+
+        // Bonus message
+        if (bonusMessage) {
+          let age = (Date.now() - bonusMessage.createdAt) / 1000;
+          if (age < 2) {
+            ctx.fillStyle = "gold";
+            ctx.fillText("+3s", 640, 25);
+          } else {
+            bonusMessage = null;
+          }
+        }
+      }
+
+      function gameLoop() {
+        if (!gameRunning) return;
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+      }
+
+      // ===== SCOREBOARD FUNCTIONS =====
+      async function showScoreboard() {
+        try {
+          const response = await axios.get(
+            "https://flappybird-server.smctgroup.ph/chase-me/scoreboard"
+          );
+          const scores = response.data.data || [];
+          const scoreList = document.getElementById("scoreList");
+          scoreList.innerHTML = "";
+
+          if (scores.length === 0) {
+            scoreList.innerHTML =
+              "<li class='font-bold text-md text-gray-200 text-center'>No scores yet.</li>";
+          }
+
+          scores.map((entry, index) => {
+            const li = document.createElement("li");
+            let gifStyle = "";
+            if (index === 0) {
+              gifStyle =
+                "background-image: url('https://media.tenor.com/2Jcp2gPh78oAAAAi/crown-joypixels.gif'); width: 50px; height: 50px;";
+            } else if (index === 1) {
+              gifStyle =
+                "background-image: url('https://media.tenor.com/2TITZ_dguLQAAAAi/princess-tiara.gif'); width: 50px; height: 50px;";
+            } else if (index === 2) {
+              gifStyle =
+                "background-image: url('https://media.tenor.com/69Akk5XvEeMAAAAi/queen.gif'); width: 50px; height: 50px;";
+            } else if (index === 3) {
+              gifStyle =
+                "background-image: url('https://media.tenor.com/c4Bw2bvsu-YAAAAi/crown-gold.gif'); width: 50px; height: 50px;";
+            }
+
+            li.innerHTML = `
+                <div class="flex justify-between items-center w-full gap-12">
+                    <div class="flex items-center gap-2.5">
+                        <div class="bg-no-repeat bg-contain bg-center" style="${gifStyle}"></div>
+                        <div class="flex flex-col space-y-0.5">
+                            <span class="name text-gray-200 font-bold text-xl">${entry.player_name}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <h1 class="text-sky-400 font-bold text-4xl">${entry.score}</h1>
+                    </div>
+                </div>
+            `;
+            scoreList.appendChild(li);
+          });
+
+          document.getElementById("scoreboard").style.display = "flex";
+        } catch (err) {
+          alert("Failed to load scoreboard");
+          console.error(err);
+        }
+      }
+
+      function closeScoreboard() {
+        document.getElementById("scoreboard").style.display = "none";
+      }
+    </script>
+  </body>
+</html>
