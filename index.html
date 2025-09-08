@@ -71,8 +71,8 @@
         </button>
       </div>
       <p class="text-lg font-bold text-white mt-2">
-        Long press the arrow keys to move. Eat the fruits to get points and +3s
-        bonus time. Avoid the chaser.
+        Long press the arrow keys or (W-A-S-D) to move. Eat the fruits to get
+        points and +3s bonus time. Avoid the chaser.
       </p>
     </div>
 
@@ -104,8 +104,8 @@
         class="rounded-2xl shadow-2xl bg-gray-800"
       ></canvas>
       <p class="text-lg font-bold text-white">
-        Long press the arrow keys to move. Eat the fruits to get points and +3s
-        bonus time. Avoid the chaser.
+        Long press the arrow keys or (W-A-S-D) to move. Eat the fruits to get
+        points and +3s bonus time. Avoid the chaser.
       </p>
     </div>
 
@@ -117,7 +117,7 @@
       let player, chaser, pointItem;
       let keys = {};
       let points = 0;
-      let gameTime = 30; // base time
+      let gameTime = 20; // base time
       let startTime;
       let bonusMessage = null;
       let gameRunning = false;
@@ -175,10 +175,10 @@
         if (!gameRunning) return;
 
         // Player movement
-        if (keys["ArrowUp"]) player.y -= player.speed;
-        if (keys["ArrowDown"]) player.y += player.speed;
-        if (keys["ArrowLeft"]) player.x -= player.speed;
-        if (keys["ArrowRight"]) player.x += player.speed;
+        if (keys["ArrowUp"] || keys["w"]) player.y -= player.speed;
+        if (keys["ArrowDown"] || keys["s"]) player.y += player.speed;
+        if (keys["ArrowLeft"] || keys["a"]) player.x -= player.speed;
+        if (keys["ArrowRight"] || keys["d"]) player.x += player.speed;
 
         // Boundaries
         player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
